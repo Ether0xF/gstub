@@ -1,4 +1,4 @@
-c# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 class Expr:
     def __init__(self, etype=None, expr=None):
@@ -30,7 +30,7 @@ class BinOp(Expr):
         self.value = str(self.loperand) + str(operator) + str(self.roperand)
 
 class ListOp(Expr):
-    def __init__(self, operator="{}", operand=None)
+    def __init__(self, operator="{}", operand=None):
         self.sep = ' '
         if isinstance(operator, str):
             Expr.__init__(self, etype="list", expr=operator)
@@ -65,7 +65,7 @@ class GrammarHandler:
         self.funcs = list()
 
     def reset(self):
-        self.funcs.clear())
+        self.funcs.clear()
 
     def func_write(self, func):
         self.funcs.append(func)
