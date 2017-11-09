@@ -1,8 +1,13 @@
 import ply.yacc as yacc
+import code_lexer as lex
 import grammar_tree as grammar_tree
 
 class CodeParser:
-    def __init__(self, lexer, gardener):
+    def __init__(self, lex, gardener):
+        self.lexer = lex.lexer
+        self.gardener = gardener
+        self.parser = self.code_yacc(self.lexer, gardener)
+    def code_yacc(self, lexer, gardener):
         """
             By rules build the intepreter and push it into grammr tree.
         """
@@ -273,4 +278,96 @@ class CodeParser:
                 p[0] = UniOp('*', p[2])
 
         # direct_abstract_declarator
-        def p_direct_abstract_declarator(p):
+        def p_direct_abstract_declarator_1(p):
+            '''direct_abstract_declarator : LPAREN abstract_declarator RPAREN
+                                          | LPAREN parameter_type_list RPAREN
+                                          | LBRACKET constant_expression RBRACKET'''
+            if p[1] == 'LPAREN':
+                p[0] = UniOp('()', p[2])
+            else:
+                p[0] = UniOp('[]', p[2])
+
+        def p_direct_abstract_declarator_2(p):
+            '''direct_abstract_declarator : direct_abstract_declarator LBRACKET constant_expression RBRACKET
+                                          | direct_abstract_declarator LPAREN parameter_type_list RPAREN'''
+            if p[2] == 'LPAREN':
+                p[0] = BinOp('()', p[1], p[3])
+            else:
+                p[0] = BinOp('[]', p[1], p[3])
+
+        # constant_expression
+        def p_constant_expression(p):
+            '''constant_expression : conditional_expression'''
+            p[0] = p[1]
+
+        # conditional_expression
+        def p_conditional_expression(p):
+            # ignore
+            pass
+        
+        # compoud_statement
+        def p_compound_statement(p):
+            '''compound_statement : LBRACE RBRACE
+                                  | LBRACE statement_list RBRACE
+                                  | LBRACE declaration_list RBRACE
+                                  | LBRACE declaration_list statement_list RBRACE'''
+            # ignore
+            pass
+        
+        # init_declarator_list
+        def p_init_declarator_list(p):
+            '''init_declarator_list : init_declarator
+                                    | init_declarator_list COMMA init_declarator'''
+            p[0] = p[1]
+
+        def p_init_declarator(p):
+            '''init_declarator : declarator
+                               | declarator ASSIGN initializer'''
+            p[0] = p[1]
+
+        # initializer
+        def p_initializer_1(p):
+            '''initializer : assignment_expression'''
+            p[0] = p[1]
+
+        def p_initializer_2(p):
+            '''initializer : LBRACE initializer_list RBRACE
+                           | LBRACE initializer_list COMMA RBRACE'''
+            if len(p) == 4:
+                p[0] = Expr('expr', '{}')
+            else:
+                p[0] = Expr('expr', '{,}')
+
+        # initializer_lit
+        def p_initializer_list(p):
+            '''initializer_list : initializer
+                                | initializer_list COMMA initializer'''
+            if len(p) == 2:
+                p[0] = p[1]
+            else:
+                p[0] = UniOp(p[2], p[3])
+        
+        def p_empty(p):
+            'empty : '
+            pass
+
+        def p_error(p):
+            printp(("syntax error at '%s'") % p.value)
+
+        return yacc.yacc(method='LALR')
+
+
+def main(data):
+    cgardener = grammar_tree.GrammarHandler()
+    lexer = lex.CodeLexer()
+    p = CodeParser(lexer, cgardener)
+    p.parser.parse(data, debug=0)
+
+if __name__ == '__main__':
+    data = '''
+        int32_t RSSP_I_link_open(RSSP_I_local_cfg_t * const local)
+        {
+            int32_t ret = -1;
+        }
+    '''
+    main(data)
