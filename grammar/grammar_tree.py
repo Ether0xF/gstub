@@ -69,4 +69,5 @@ class GrammarHandler:
 
     def func_write(self, func):
         self.funcs.append(func)
+        print(func)
 

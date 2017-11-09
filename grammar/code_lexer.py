@@ -44,7 +44,6 @@ class CodeLexer:
             'void'     : 'VOID',
             'volatile' : 'VOLATILE',
             'while'    : 'WHILE',
-            'cr'       : 'CR',
     }
 
     tokens = [
@@ -76,7 +75,7 @@ class CodeLexer:
         'INCREMENT', 'DECREMENT',
 
         # Struct dereference (->)
-        'ARROW',
+        'PTR',
         # Ternary operator (?)
         'TERNARY',
 
@@ -151,7 +150,7 @@ class CodeLexer:
     t_DECREMENT   = r'--'
 
     # ->
-    t_ARROW       = r'->'
+    t_PTR       = r'->'
 
     # ?
     t_TERNARY     = r'\?'
@@ -177,8 +176,6 @@ class CodeLexer:
                 and t.value[-2] == '_'
             ):
             t.type = "TYPEID"
-        elif t.value.upper == 'CR':
-            t.type = 'STRING'
         elif t.value.upper() == 'FAR':
             t.type = 'AUTO'
         else:
