@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import sys
 
 class Expr:
     def __init__(self, etype=None, expr=None):
@@ -10,7 +11,7 @@ class Expr:
 
 class UniOp(Expr):
     def __init__(self, operator="-", operand=None):
-        Expr.__init__("uniop", operator)
+        Expr.__init__(self,etype="uniop", expr=operator)
         self.operand = operand
         self.operator = str(operator)
         if self.operator == '()':
@@ -24,14 +25,18 @@ class UniOp(Expr):
 
 class BinOp(Expr):
     def __init__(self, operator="=", loperand=None, roperand=None):
-        Expr.__init__("binop", operator)
+        Expr.__init__(self, "binop", operator)
         self.loperand = loperand
         self.roperand = roperand
-        self.value = str(self.loperand) + str(operator) + str(self.roperand)
+        if operator == '()':
+            self.value = str(self.loperand) + str(operator[0]) + str(self.roperand) + str(operator[1])
+        else:
+            self.value = str(self.loperand) + str(operator) + str(self.roperand)
 
 class ListOp(Expr):
     def __init__(self, operator="{}", operand=None):
         self.sep = ' '
+        self.children = list()
         if isinstance(operator, str):
             Expr.__init__(self, etype="list", expr=operator)
             if (operand is None):
@@ -40,7 +45,7 @@ class ListOp(Expr):
                 self.children = operand
                 self.value = ' '.join(operand)
             else: 
-                self.chidren = list(operand)
+                self.chidren = list(operand.value)
                 self.value = str(operand)
         elif isinstance(oeraotr, Expr):
             Expr.__init__(self, etype="expr", expr=operator)
@@ -50,18 +55,34 @@ class ListOp(Expr):
             pass
 
     def add_child(self, child):
-        slf.children.append(child)
-        self.value += ' '
-        self.value += str(child)
+        if isinstance(child, list):
+            self.children.extend(child)
+            for e in child:
+                self.value += ' '
+                self.value += str(e)
+        elif isinstance(child, ListOp):
+            self.children.extend(child.value)
+            for e in child.value:
+                self.value += ' '
+                self.value += str(e)
+        elif isinstance(child, Expr):
+            self.children.append(child.value)
+            self.value += ' '
+            self.value += str(child.value)
+        else:
+            self.children.append(child)
+            self.value += ' '
+            self.value += str(child)
+
 
 class Func(Expr):
     def __init__(self, name="", prototype=""):
-        Expr.__init__("func", prototype)
+        Expr.__init__(self, "func", prototype)
         self.name = str(name)
         self.prototype = str(prototype)
 
 class GrammarHandler:
-    def __init_(self):
+    def __init__(self):
         self.funcs = list()
 
     def reset(self):
@@ -69,5 +90,9 @@ class GrammarHandler:
 
     def func_write(self, func):
         self.funcs.append(func)
-        print(func)
+        print("##########################", func)
 
+def debug_info(p):
+    print("DEBUG_INFO:--------------------")
+    print("\t", p.value)
+    print("-------------------------------")

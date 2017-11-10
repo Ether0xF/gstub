@@ -1,31 +1,35 @@
 import ply.yacc as yacc
 from code_lexer import *
-import grammar_tree as grammar_tree
+from grammar_tree import *
 
-def cparser(mylex, gardener):
+def cparser(mylex, gardener, debug=0):
     """
         By rules build the intepreter and push it into grammr tree.
     """
     def p_translation_unit(p):
         '''translation_unit : external_declaration
                             | translation_unit external_declaration'''
-        pass
+        if len(p) == 2:
+            p[0] = p[1]
+        else:
+            p[0] = p[2]
 
     def p_external_declaration_1(p):
         'external_declaration : function_definition'
-        pass
+        p[0] = p[1]
 
     def p_external_declaration_2(p):
         'external_declaration : declaration'
-        p[0] = p[1]
+        proto = str(p[1].value)
+        p[0] = Func(p[1].value, proto)
+        gardener.func_write(p[0])
 
     # function_definition
 
     def p_function_definiton(p):
-        '''function_definition : declaration_specifiers declarator declaration_list compound_statement
-                               | declarator declaration_list compound_statement'''
+        '''function_definition : declaration_specifiers direct_declarator declaration_list compound_statement
+                               | direct_declarator declaration_list compound_statement'''
         proto = ' '.join(p[1:-1])
-        print(proto)
         if len(p) == 5:
             p[0] = Func(p[2], proto)
         else:
@@ -45,6 +49,16 @@ def cparser(mylex, gardener):
         p[0] = Func(p[1], prototype)
         gardener.func_write(p[0])
 
+    # declaration
+    def p_declaraion_1(p):
+        'declaration : declaration_specifiers SEMI'
+        p[0] = p[1]
+
+    def p_declaration_2(p):
+        'declaration : declaration_specifiers init_declarator_list'
+        p[0] = ListOp(' ', p[1])
+        p[0].add_child(p[2])
+
     # declaration_list
     def p_declaration_list_1(p):
         'declaration_list : declaration'
@@ -55,17 +69,6 @@ def cparser(mylex, gardener):
         p[0] = p[1]
         p[0].add_child(p[2])
 
-    # declaration
-
-    def p_declaraion_1(p):
-        'declaration : declaration_specifiers SEMI'
-        p[0] = p[1]
-
-    def p_declaration_2(p):
-        'declaration : declaration_specifiers init_declarator_list'
-        p[0] = ListOp(' ', p[1])
-        p[0].add_child(p[2])
-
     # declaration_speicifiers
     def p_declaration_specifiers(p):
         '''declaration_specifiers : storage_class_specifier
@@ -74,7 +77,7 @@ def cparser(mylex, gardener):
                                     | type_specifier declaration_specifiers
                                     | type_qualifier
                                     | type_qualifier declaration_specifiers'''
-        if (len[p]==2): p[0] = p[1]
+        if (len(p)==2): p[0] = p[1]
         else          : p[0] = p[2]
 
     # storage_specifier
@@ -127,6 +130,20 @@ def cparser(mylex, gardener):
                                    | struct_declaration_list struct_declaration'''
         p[0] = p[1]
 
+    # init_declarator_list
+    def p_init_declarator_list(p):
+        '''init_declarator_list : init_declarator
+                                | init_declarator_list COMMA init_declarator'''
+        p[0] = p[1]
+
+    def p_init_declarator(p):
+        '''init_declarator : declarator ASSIGN initializer
+                           | declarator'''
+        if len(p) == 2:
+            p[0] = p[1]
+        else:
+            p[0] = BinOp(p[2], p[1], p[3])
+
     # struct_delcaration
     def p_struct_declaration(p):
         '''struct_declaration : specifier_qualifier_list struct_declarator_list'''
@@ -173,33 +190,10 @@ def cparser(mylex, gardener):
         p[0] = p[1]
 
     # declarator
-
     def p_declarator(p):
-        '''declarator : pointer direct_declarator
-                        | direct_declarator'''
+        '''declarator : direct_declarator
+                      | pointer direct_declarator'''
         p[0] = UniOp(p[1], p[2]) if len(p)==3 else p[1]
-
-    # pointer
-    
-    def p_pointer_1(p):
-        'pointer : TIMES'
-        p[0] = Expr("uniop", p[1])
-
-    def p_pointer_2(p):
-        'pointer : TIMES pointer'
-        p[0] = UniOp(p[1], p[2])
-
-    def p_pointer_3(p):
-        '''pointer : TIMES type_qualifier_list
-                    | TIMES type_qualifier_list pointer'''
-        p[0] = UniOp(p[1], p[3]) if len(p)==4 else UniOp(p[1], p[1])
-
-    # type_qualifier_list
-
-    def p_type_qualifier_list(p):
-        '''type_qualifier_list : type_qualifier
-                                | type_qualifier_list type_qualifier'''
-        p[0] = p[1] if len(p)==2 else p[2]
 
     # direct_declarator
     def p_direct_declarator_1(p):
@@ -217,6 +211,7 @@ def cparser(mylex, gardener):
     def p_direct_declarator_4(p):
         '''direct_declarator : direct_declarator LPAREN parameter_type_list RPAREN'''
         p[0] = BinOp('()', p[1], p[3])
+        debug_info(p[0])
 
     def p_direct_declarator_5(p):
         '''direct_declarator : direct_declarator LPAREN identifier_list RPAREN'''
@@ -230,6 +225,27 @@ def cparser(mylex, gardener):
         elif p[2] == 'LBRACKET':
             op = '[]'
         p[0] = UniOp(op, p[1])
+
+    # pointer
+    def p_pointer_1(p):
+        'pointer : TIMES'
+        p[0] = Expr("uniop", p[1])
+
+    def p_pointer_2(p):
+        'pointer : TIMES pointer'
+        p[0] = UniOp(p[1], p[2])
+
+    def p_pointer_3(p):
+        '''pointer : TIMES type_qualifier_list
+                    | TIMES type_qualifier_list pointer'''
+        p[0] = UniOp(p[1], p[3]) if len(p)==4 else UniOp(p[1], p[2])
+
+    # type_qualifier_list
+
+    def p_type_qualifier_list(p):
+        '''type_qualifier_list : type_qualifier
+                                | type_qualifier_list type_qualifier'''
+        p[0] = p[1] if len(p)==2 else p[2]
 
     # parameter_type_list
     def p_parameter_type_list(p):
@@ -250,12 +266,14 @@ def cparser(mylex, gardener):
     # parameter_declaration
     def p_parameter_declaration(p):
         '''parameter_declaration : declaration_specifiers declarator
-                                    | declaration_specifiers abstract_declarator
-                                    | declaration_specifiers'''
+                                 | declaration_specifiers abstract_declarator
+                                 | declaration_specifiers'''
         if len(p) == 2:
             p[0] = p[1]
         else:
-            p[0] = Expr(etype='expr', expr=' '.p[1:3])
+            expr = [x.value for x in p[1:3]]
+            p[0] = Expr('declaration', expr=' '.join(expr))
+            print("----------------------------", p[0])
 
     # identifier_list
     def p_identifier_list(p):
@@ -267,11 +285,41 @@ def cparser(mylex, gardener):
             p[0] = ListOp(p[1])
             p[0].add_child(p[3])
 
+    # initializer
+    def p_initializer_1(p):
+        '''initializer : assignment_expression'''
+        p[0] = p[1]
+
+    def p_initializer_2(p):
+        '''initializer : LBRACE initializer_list RBRACE
+                        | LBRACE initializer_list COMMA RBRACE'''
+        if len(p) == 4:
+            p[0] = Expr('expr', '{}')
+        else:
+            p[0] = Expr('expr', '{,}')
+
+    # initializer_lit
+    def p_initializer_list(p):
+        '''initializer_list : initializer
+                            | initializer_list COMMA initializer'''
+        if len(p) == 2:
+            p[0] = p[1]
+        else:
+            p[0] = UniOp(p[2], p[3])
+    
+    def p_type_name(p):
+        '''type_name : specifier_qualifier_list
+                     | specifier_qualifier_list abstract_declarator'''
+        if len(p) == 2:
+            p[0] = p[1]
+        elif len(p) == 3:
+            p[0] = p[2]
+
     # abstrct_declarator
     def p_abstract_declarator(p):
         '''abstract_declarator : pointer
-                                | direct_abstract_declarator
-                                | pointer direct_abstract_declarator'''
+                               | pointer direct_abstract_declarator
+                               | direct_abstract_declarator'''
         if len(p) == 2:
             p[0] = p[1]
         else:
@@ -427,14 +475,6 @@ def cparser(mylex, gardener):
                           | LNOT'''
         p[0] = Expr(p[1])
 
-    def p_type_name(p):
-        '''type_name : specifier_qualifier_list
-                     | specifier_qualifier_list abstract_declarator'''
-        if len(p) == 2:
-            p[0] = p[1]
-        elif len(p) == 3:
-            p[0] = p[2]
-
     def p_primary_expression(p):
         '''primary_expression : ID
                               | constant
@@ -447,7 +487,7 @@ def cparser(mylex, gardener):
 
     def p_constant(p):
         '''constant : INTEGER
-                    | FLOAT
+                    | FCONST
                     | CHARACTER
                     | HEXCONST'''
         p[0] = Expr('const', str(p[1]))
@@ -550,66 +590,24 @@ def cparser(mylex, gardener):
                           | RETURN expression SEMI'''
         pass
 
-    # init_declarator_list
-    def p_init_declarator_list(p):
-        '''init_declarator_list : init_declarator
-                                | init_declarator_list COMMA init_declarator'''
-        p[0] = p[1]
-
-    def p_init_declarator(p):
-        '''init_declarator : declarator
-                            | declarator ASSIGN initializer'''
-        p[0] = p[1]
-
-    # initializer
-    def p_initializer_1(p):
-        '''initializer : assignment_expression'''
-        p[0] = p[1]
-
-    def p_initializer_2(p):
-        '''initializer : LBRACE initializer_list RBRACE
-                        | LBRACE initializer_list COMMA RBRACE'''
-        if len(p) == 4:
-            p[0] = Expr('expr', '{}')
-        else:
-            p[0] = Expr('expr', '{,}')
-
-    # initializer_lit
-    def p_initializer_list(p):
-        '''initializer_list : initializer
-                            | initializer_list COMMA initializer'''
-        if len(p) == 2:
-            p[0] = p[1]
-        else:
-            p[0] = UniOp(p[2], p[3])
-    
     def p_empty(p):
         'empty : '
         pass
 
     def p_error(p):
-        printp(("syntax error at '%s'") % p.value)
+        pass
 
     lexer = mylex.lexer
     tokens = mylex.tokens
     p = yacc.yacc(method='LALR', tabmodule='c_tab', debugfile='cparser.out', debug=1)
     return p
 
-
-def main(data):
-    cgardener = grammar_tree.GrammarHandler()
+def cparser_main(data):
+    cgardener = GrammarHandler()
     code_lex = CodeLexer()
-    code_lex.lexer.input(data)
-    while True:
-        tok = code_lex.lexer.token()
-        if not tok : break
-        print(tok)
     p = cparser(code_lex, cgardener)
+    p.parse(data, debug=1)
 
 if __name__ == '__main__':
-    data = '''
-    int32_t RSSP_I_link_open(RSSP_I_local_cfg_t * const local)
-    {
-    }
-    '''
-    main(data)
+    data = '''int32_t RSSP_I_link_open(RSSP_I_local_cfg_t * const local)'''
+    cparser_main(data)

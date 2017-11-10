@@ -26,6 +26,7 @@ class CodeLexer:
             'enum'     : 'ENUM',
             'extern'   : 'EXTERN',
             'for'      : 'FOR',
+            'float'    : 'FLOAT',
             'goto'     : 'GOTO',
             'if'       : 'IF',
             'int'      : 'INT',
@@ -51,7 +52,7 @@ class CodeLexer:
         # identifiers
         'ID', 'TYPEID', 
         # integer constant, float constant
-        'INTEGER', 'HEXCONST', 'FLOAT', 
+        'INTEGER', 'HEXCONST', 'FCONST', 
         #string constant, character constant
         'STRING', 'CHARACTER', 
 
@@ -102,7 +103,7 @@ class CodeLexer:
     # Hex constant handler
 
     # Floating literal
-    t_FLOAT      = r'((\d+)(\.\d+)+(e(\+|-)?(\d+))?([lL]|[fF])?) | ((\d+)e(\+|-)?(\d+)([lL]|[uU])?)'
+    t_FCONST= r'((\d+)(\.\d+)+(e(\+|-)?(\d+))?([lL]|[fF])?) | ((\d+)e(\+|-)?(\d+)([lL]|[uU])?)'
 
     # String literal
     STRING       = r'\"([^\\\n]|(\\.))*?\"'
@@ -216,6 +217,11 @@ class CodeLexer:
 
     def build(self, **kwargs):
         self.lexer = lex.lex(module=self, **kwargs)
+
+    precedence = (
+        ('left', 'PLUS', 'MINUS'),
+        ('left', 'TIMES', 'DIVIDE', 'MODULO'),
+    )
 
 if __name__ == '__main__':
     lexer = CodeLexer().lexer
