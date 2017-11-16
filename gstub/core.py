@@ -70,7 +70,7 @@ def main():
     debugmod = False
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hv", ["debug"])
-        if len(opts)==0:
+        if len(opts)==0 and len(args)==0:
             helpman()
             sys.exit(0)
         for o,a in opts:

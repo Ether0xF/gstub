@@ -7,11 +7,14 @@ func_def_pattern = re.compile(r'^((\w)+\s)+(\w)+\((.*)\)(\{)?')
 func_defs = list()
 class FuncElem:
     func_idx = 0
+    QUALIFIERS = ['const', 'volatile']
+    SPECIFIERS = ['static', 'extern']
     def __init__(self, proto=None, debug=False):
         FuncElem.func_idx += 1
         self.idx = FuncElem.func_idx
         self.prototype = proto
         self.return_type = ""
+        self.specifier  = list()
         self.func_name = ""
         self.params = list()
 
@@ -22,7 +25,7 @@ class FuncElem:
             self.debug_info()
 
     def debug_info(self):
-            print("{:0d}  {:s}".format(self.idx, self.func_name), end='')
+            print("{:02d}  {:s}".format(self.idx, self.func_name), end='')
             for i in range(40-len(self.func_name)):
                 print("=", end='')
             print()
@@ -39,8 +42,19 @@ class FuncElem:
         match = self.decl_pattern.findall(proto)
         if match:
             decl_literal = match[0]
+
+            # parse the func return type
             self.return_type = " ".join(decl_literal.split(' ')[:-1])
+            for s in FuncElem.SPECIFIERS:
+                s_beg = self.return_type.find(s)
+                if s_beg != -1:
+                    self.return_type = self.return_type[:s_beg].strip() + self.return_type[(s_beg+len(s)):].strip()
+                    self.return_type.strip()
+                    self.specifier.append(str(s))
+
+            # parse the func name
             self.func_name   = decl_literal.split(' ')[-1]
+
             # find if there is any parameter matched
             if len(match) > 1:
                 param_literal = match[1]
@@ -59,11 +73,22 @@ class FuncElem:
                 else:
                     param_type = " ".join(fp.split(' ')[:-1])
                     param_name = str(fp.split(' ')[-1])
+                    # deal with if any qualifier
+                    param_qualifier = list()
+                    for q in FuncElem.QUALIFIERS:
+                        q_beg = param_type.find(q)
+                        if q_beg != -1:
+                            param_type = param_type[:q_beg] + param_type[(q_beg+len(q)):]
+                            param_qualifier.append(str(q))
                     if param_name[0] == '*':
                         param_name = param_name[1:]
                         param_type += " *"
-                    param_set = (param_type, param_name)
-                    self.params.append(param_set)
+                    param_dic = {
+                        'type': param_type,
+                        'qualifier': param_qualifier,
+                        'name': param_name,
+                    }
+                    self.params.append(param_dic)
         else:
             if debug: print("{:0d}  ERROR: Declaration pattern didn't match.".format(self.idx))
 

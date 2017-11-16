@@ -122,15 +122,11 @@ CMakeLists.txt.user
 
 smvn-build-info
 .vscode
-/src/test/RSSPI_test.cpp
-/src/test/crc_make.c
-/src/ftest/main_RSSPI.c
-/src/ftest/ftest_handler.h
 /doc
 __pycache__
 *.c
 *.h
-/setup.py
+setup.py
 /dist
 /gstub.egg-info
 /build
