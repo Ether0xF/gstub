@@ -21,6 +21,13 @@ def stubs_header_preprocess_writer(filename):
     line = "#include \"unifw.h\"\n\n"
     codes.append(line)
 
+    line = "#define _STUB_PARAM_ASSIGN(func_name, param_name, param_stubed_type) if (0 != param_stubed_type)\\\n"
+    line += "        {\\\n"
+    line += "            &param_name = &(__##func_name##_##param_name##_ret_list[index]);\\\n"
+    line += "        }\n"
+    codes.append(line)
+
+
     for c in stub_cfgs:
         codes.append(c+"\n")
     codes.append("\n")
@@ -31,7 +38,6 @@ def stubs_header_preprocess_writer(filename):
     codes.append(line)
 
     return codes
-
 
 def stubs_preprocess_writer(filename):
     codes = list()
@@ -161,7 +167,10 @@ def stubs_test_writer(ret, name, params):
                 param_stub_type = "0"
             else:
                 param_stub_type = "1"
-            line += "            _STUB_PARAM_ASSIGN( {:s}, {:s}, {:s});\n".format(name, pd['name'].rstrip(']').rstrip('['), param_stub_type)
+            line += "            _STUB_PARAM_ASSIGN( {:s}, {:s}, {:s});\n".format(
+                                                    name, 
+                                                    pd['name'].rstrip(']').rstrip('['), 
+                                                    param_stub_type)
     line += "        }else{\n"
     codes.append(line)
     line = "            printp(\"\\r\\nUTEST stub crash at: %s L%d\\r\\n\", __FILE__, __LINE__);\n"
@@ -193,17 +202,18 @@ def stubs_code_writer(f, p):
     params    = p.params
     f.writelines(stubs_cfg_writer(ret_type, func_name, params))
     f.writelines(stubs_test_writer(ret_type, func_name, params))
-def stubs_composer(fn, func_list):
+def stubs_composer(fp, func_list):
     if func_list is None :
         return
     elif len(func_list) == 0:
         print("ERROR: None of validate function definitions are found.")
     else:
-        filename  = fn + '_stub'
-
-        with open(filename+'.c', 'w') as f:
-            f.writelines(stubs_preprocess_writer(filename))
+        fn = os.path.splitext(os.path.basename(fp))[0]
+        fn = fn + '_stub'
+        path = os.path.split(fp)[0]
+        with open(os.path.join(path, fn+'.c'), 'w') as f:
+            f.writelines(stubs_preprocess_writer(fn))
             for p in func_list:
                 stubs_code_writer(f, p)
-        with open (filename+'.h', 'w') as h:
-            h.writelines(stubs_header_preprocess_writer(filename))
+        with open (os.path.join(path, fn+'.h'), 'w') as h:
+            h.writelines(stubs_header_preprocess_writer(fn))

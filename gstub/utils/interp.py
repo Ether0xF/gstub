@@ -3,8 +3,11 @@ import re
 __doc__ = ""
 __version__ = "0.0.1"
 
-func_def_pattern = re.compile(r'^((\w)+\s)+(\w)+\((.*)\)(\{)?')
-func_defs = list()
+func_def_pattern = re.compile(r'^(\w+\s+)+(\w+)\s*\(\s*(.+)\s*(\)?|(\)\{)?)')
+param_dec_pattern = re.compile(r'\(\s*((?:void)|[^!=<>]+\s*)(\)?|(\)\{)?|,?)$')
+blank_pattern    = re.compile(r'\s{2,}')
+merge_status = False
+merge_line   = ""
 class FuncElem:
     func_idx = 0
     QUALIFIERS = ['const', 'volatile']
@@ -69,7 +72,7 @@ class FuncElem:
             # write parameters in tuple form of (param_type, param_name)
             for fp in fparams:
                 if fp == "void":
-                    self.params = [("void", "void")]
+                    self.params = [{'type': "void", 'qualifier':'', 'name': "void"}]
                 else:
                     param_type = " ".join(fp.split(' ')[:-1])
                     param_name = str(fp.split(' ')[-1])
@@ -95,20 +98,44 @@ class FuncElem:
     def __str__(self):
         return self.prototype
 
-def func_parser(code, debug=False):
-    find = func_def_pattern.search(code)
-    if find is None:
-        pass
+def func_parser(defs, code, debug=False):
+    global merge_status
+    global merge_line
+    code = code.strip().strip('\n')
+    if merge_status == False:
+        find = func_def_pattern.match(code)
+        if find is None:
+            pass
+        else:
+            line = find.group()
+            if param_dec_pattern.search(line) is not None:
+                line = line.rstrip('{')
+                if line.endswith(r','):
+                    merge_status = True
+                    merge_line  += line
+                else:
+                    defs.append(FuncElem(line, debug))
+            else:
+                pass
+
     else:
-        p = find.group().strip(' ')
-        p = p.strip('{')
-        p = p.strip('}')
-        func_defs.append(FuncElem(p, debug))
+        if code.endswith(r','):
+            merge_line += code
+        if code.endswith(r')'):
+            merge_status = False
+            merge_line += code
+            merge_line = ' '.join(re.split(r'\s+', merge_line))
+            defs.append(FuncElem(merge_line, debug))
+            merge_line = ""
+        else:
+            pass
 
 def interpret(code_lines, debug=False):
+    func_defs = list()
+    func_defs.clear()
     if code_lines is None or len(code_lines)==0:
         return
     else:
         for l in code_lines:
-            func_parser(l, debug=debug)
+            func_parser(func_defs, l, debug=debug)
     return func_defs
