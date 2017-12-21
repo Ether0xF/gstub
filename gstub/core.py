@@ -83,20 +83,23 @@ def utest_check_list_processor(tblpath, filepath, deflist=None, debug=False):
             f.writelines(rows)
 
 
-def main_process(tblpath, filepath, debug=False):
+def parse_process(filepath, debug=False):
     defs = list()
     defs.clear()
     prototypes = list()
     with open(filepath) as f:
         defs = fip.interpret(f.readlines(), debug=debug)
 
+    if len(defs)==0 and debug: print("INFO : None of function definitions were founded.")
+
+    return defs
+
+
+def main_process(tblpath, filepath, debug=False):
+    func_defs = list()
+    func_defs = parse_process(filepath, debug)
+
     utest_check_list_processor(tblpath, filepath, defs, debug)
-    #for e in defs:
-    #   print(e.prototype)
-    if len(defs) == 0:
-        if debug: print("INFO : None of function definitions were founded.")
-    else:
-        fw.stubs_composer(filepath, defs)
 
 def helpman():
         print(
