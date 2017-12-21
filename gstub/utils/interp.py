@@ -127,6 +127,11 @@ def func_parser(defs, code, debug=False):
             merge_line = ' '.join(re.split(r'\s+', merge_line))
             defs.append(FuncElem(merge_line, debug))
             merge_line = ""
+        elif code.endswith(r');'):
+            # 函数原型声明，丢弃已解析部分
+            # TODO: 添加deflist中函数名是否已存在的查找函数，对函数声明也加入解析，函数定义解析后不用再重复加入列表
+            merge_status = False
+            merge_line = ""
         else:
             pass
 
