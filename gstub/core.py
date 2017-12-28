@@ -4,12 +4,13 @@
 import os
 import sys
 import re
-import getopt
 import glob
+import argparse as apa
+
 import gstub.utils.interp as fip
 import gstub.utils.fwriter as fw
 
-__version__ = "V0.0.2 2017-12-17"
+from __init__ import __version__
 
 decl_pattern  = re.compile(r'[^\(\)]+')
 param_pattern = re.compile(r'\(.*?\)')
@@ -99,7 +100,7 @@ def main_process(tblpath, filepath, debug=False):
     func_defs = list()
     func_defs = parse_process(filepath, debug)
 
-    utest_check_list_processor(tblpath, filepath, defs, debug)
+    utest_check_list_processor(tblpath, filepath, func_defs, debug)
 
 def helpman():
         print(
@@ -150,7 +151,7 @@ def parse_file(fn, debug=False):
         else:
             print("INFO : Current working dir: {:s}".format(filepath))
             tblpath = utest_create_checklist_file(os.path.dirname(filepath))
-            main_process(tblfilepath, debug=debug)
+            main_process(tblpath, filepath, debug=debug)
             print()
     else:
         print("ERROR: filename={:s} -> File not found.".format(fn), end=' ')
@@ -165,42 +166,84 @@ def utest_create_checklist_file(path=""):
         f.write(header)
     return fn
 
+def parse_command_process(args):
+        if args.Path:
+            print("dir")
+        elif args.File:
+            print("file")
+        else:
+            print("parse command has undefined option")
+
+def table_command_process(args):
+        if args.Funclist:
+            print("list")
+        if args.Output:
+            print("output")
+        else:
+            print("table command has undefined option")
 
 def main():
-    debugmod = False
+    '''Accept and process arguments from command-line
+
+    Including:
+        Options:
+            -h, --help,                 help usage(default builtin by argparse module)
+            -v, --version,              version print
+
+        Sub-commands(and options):
+            + parse:
+                * -f, --file,           default option under "parse" command, accept a .c filename(path)
+                * -d, --dir, -a, --all  accept a directory path and parse all .c files inside
+            - table
+                * -l, --list,           list out all functions within .c files in the given directory
+                * -o, --output,         output the function list to the excel file and make it a checklist for unittest
+
+    Any other subcommands and options are expanded below.
+    '''
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvad", ["debug", "dir", "all"])
-        if len(opts)==0 and len(args)==0:
-            helpman()
-            sys.exit(0)
-        if ('--debug', '') in opts:
-            debugmod = True
-        if len(opts)==0 or (len(opts)==1 and ('--debug', '') in opts):
-            for a in args:
-                parse_file(a, debugmod)
-        else:
-            for (o,a) in opts:
-                if o in ['-v', '--version']:
-                    # TODO: version print doesn't work
-                    print("gstub @ ", __version__)
-                elif o in ['-h', '--help']:
-                    helpman()
-                elif o in ['-a', '--all', '-d']:
-                    if o == '-d':
-                        for p in args:
-                            if os.path.isdir(p):
-                                parse_all_in_dir(p, debugmod)
-                            else:
-                                if debug: print("{:s} is not a valid path.".format(p))
-                    else:
-                        parse_all_in_dir(os.getcwd(), debugmod)
-                else:
-                    if o == "--debug":
-                        pass
-                    else:
-                        helpman()
-                        sys.exit(0)
-    except getopt.GetoptError as e:
+        # Arguments parser and subparser
+        arg_parser    = apa.ArgumentParser(prog="Gstub", description="Generate interpositioning stubs or/and test checklist from .c file")
+        arg_subparser = arg_parser.add_subparsers(help="Commands in Gstub for various situations")
+        # this module version print option -v and --version
+        arg_parser.add_argument("-v", "--version", action='version', version="%(prog)s@{:s}".format(__version__))
+
+        # parser of "parse" sub-command and its' options
+        parse_parser = arg_subparser.add_parser("parse", 
+                help="Parse the .c file(s) and generate interpositioning stubs for the unittest")
+        # exclusive group options consisted [-f, --file] against [-d, --dir, -a, --all]
+        parse_parser_exgroup = parse_parser.add_mutually_exclusive_group()
+        parse_parser_exgroup.add_argument('-d', '--dir', '-a', '--all', 
+                                          dest    = "Path",
+                                          metavar = "Path",
+                                          help    = "parse all .c files in the given directories' path")
+        parse_parser_exgroup.add_argument('-f', '--file', 
+                                          dest    = "File",
+                                          metavar = "Filename",
+                                          help    = "parse a single .c file by accepting its path")
+        parse_parser.add_argument        ("--debug", 
+                                          dest    = "Debug", 
+                                          help    = "Debug mode", 
+                                          action  = 'store_true')
+        parse_parser.set_defaults(func=parse_command_process)
+
+        # parser of "table" sub-command and its' options
+        table_parser = arg_subparser.add_parser("table", 
+                help="Output a list of .c files and contained functions")
+        table_parser.add_argument        ('-l', "--list", 
+                                          dest   = "Funclist", 
+                                          help   = "List out all functions", 
+                                          action = 'store_true')
+        table_parser.add_argument        ('-o', "--output", 
+                                          dest   ="Output", 
+                                          help   ="Output the function list to excel file", 
+                                          action ='store_true')
+        table_parser.set_defaults(func=table_command_process)
+
+
+        args = arg_parser.parse_args()
+        args.func(args)
+
+    except apa.ArgumentError as e:
         helpman()
         sys.exit(2)
 
