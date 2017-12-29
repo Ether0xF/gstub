@@ -7,10 +7,11 @@ import re
 import glob
 import argparse as apa
 
-import gstub.utils.interp as fip
+import gstub.utils.interp  as fip
 import gstub.utils.fwriter as fw
+import gstub.utils.twriter as tw
 
-from __init__ import __version__
+from gstub.__init__ import __version__
 
 decl_pattern  = re.compile(r'[^\(\)]+')
 param_pattern = re.compile(r'\(.*?\)')
@@ -47,43 +48,6 @@ def funcdef_writer(deflist=None):
                   "params"  : params})
     return proto_list
 
-def utest_check_list_deflist_writer(filename, deflist=None, debug=False):
-    func_dict.setdefault(filename, list())
-    for d in deflist:
-        if debug and d is None: print("Definition in list is invalid.")
-        func_dict[filename].append(d.prototype)
-
-def utest_check_list_table_writer(xlsfile, filename, debug=False):
-    row = ""
-    rows = list()
-    for v in func_dict[filename]:
-        row = filename + " \t " + v + "\r\n"
-        rows.append(row)
-        row = ""
-    xlsfile.writelines(rows)
-
-def utest_check_list_processor(tblpath, filepath, deflist=None, debug=False):
-    if deflist is None or len(deflist)==0:
-        if debug: print("None valid definition list.")
-        return
-    
-    filename = ""
-    if os.path.exists(filepath) and os.path.isfile(filepath):
-        # fetch the base filename from path
-        filename = os.path.basename(filepath)
-        # write src file name mapping definitions list
-        utest_check_list_deflist_writer(filename, deflist, debug)
-
-        with open(tblpath, 'a', encoding="gbk") as f:
-            row = ""
-            rows = list()
-            for v in func_dict[filename]:
-                row = filename + " \t " + v + "\r\n"
-                rows.append(row)
-                row = ""
-            f.writelines(rows)
-
-
 def parse_process(filepath, debug=False):
     defs = list()
     defs.clear()
@@ -95,12 +59,11 @@ def parse_process(filepath, debug=False):
 
     return defs
 
-
 def main_process(tblpath, filepath, debug=False):
     func_defs = list()
     func_defs = parse_process(filepath, debug)
 
-    utest_check_list_processor(tblpath, filepath, func_defs, debug)
+    tw.utest_check_list_processor(tblpath, filepath, func_defs, debug)
 
 def helpman():
         print(
@@ -126,7 +89,7 @@ def parse_all_in_dir(path=os.getcwd(), debug=False):
     '''
     parse all .c files in giving working dir
     '''
-    tblpath = utest_create_checklist_file(path)
+    tblpath = tw.utest_create_checklist_file(path)
     for f in os.listdir(path):
         filepath = os.path.join(path, f)
         if os.path.exists(filepath) and os.path.isfile(filepath):
@@ -150,27 +113,22 @@ def parse_file(fn, debug=False):
             print("ERROR: {:s} isn't a .c file.".format(fn))
         else:
             print("INFO : Current working dir: {:s}".format(filepath))
-            tblpath = utest_create_checklist_file(os.path.dirname(filepath))
+            tblpath = tw.utest_create_checklist_file(os.path.dirname(filepath))
             main_process(tblpath, filepath, debug=debug)
             print()
     else:
         print("ERROR: filename={:s} -> File not found.".format(fn), end=' ')
 
-def utest_create_checklist_file(path=""):
-    fn = os.path.join(path, "check_list.xls")
-    print("INFO : CheckList -> {:s}".format(fn))
-    with open(fn, 'w', encoding="gbk") as f:
-        header = u"文件名 \t" + u"函数原型 \t" + u"状态 \t" + u"用例数 \t" \
-                + u"失败数 \t" + u"语句覆盖 \t" + u"MC\DC \t" + u"说明 \t" \
-                + u"验证" + "\r\n"
-        f.write(header)
-    return fn
-
 def parse_command_process(args):
+        if args.Debug:
+            debugmode = True
+        else:
+            debugmode = False
+
         if args.Path:
             print("dir")
         elif args.File:
-            print("file")
+            parse_file(args.File, debugmode)
         else:
             print("parse command has undefined option")
 
@@ -181,6 +139,9 @@ def table_command_process(args):
             print("output")
         else:
             print("table command has undefined option")
+
+def main_command_process(args):
+    args.print_help()
 
 def main():
     '''Accept and process arguments from command-line
@@ -206,6 +167,7 @@ def main():
         arg_subparser = arg_parser.add_subparsers(help="Commands in Gstub for various situations")
         # this module version print option -v and --version
         arg_parser.add_argument("-v", "--version", action='version', version="%(prog)s@{:s}".format(__version__))
+        arg_parser.set_defaults(func=main_command_process)
 
         # parser of "parse" sub-command and its' options
         parse_parser = arg_subparser.add_parser("parse", 

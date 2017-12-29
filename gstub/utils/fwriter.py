@@ -1,9 +1,7 @@
+#!/usr/bin/python
 #-*- coding: utf-8 -*-
 
 import os
-
-__doc__ = ""
-__version = "0.0.1"
 
 stub_cfgs = list()
 
