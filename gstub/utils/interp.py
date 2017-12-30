@@ -1,13 +1,10 @@
 import re
 
-__doc__ = ""
-__version__ = "0.0.1"
+_func_def_pattern  = re.compile(r'^(\w+\s+)+(\w+)\s*\(\s*(.+)\s*(\)?|(\)\{)?)')
+_param_dec_pattern = re.compile(r'\(\s*((?:void)|[^!=<>]+\s*)(\)?|(\)\{)?|,?)$')
+_merge_status      = False
+_merge_line        = ""
 
-func_def_pattern = re.compile(r'^(\w+\s+)+(\w+)\s*\(\s*(.+)\s*(\)?|(\)\{)?)')
-param_dec_pattern = re.compile(r'\(\s*((?:void)|[^!=<>]+\s*)(\)?|(\)\{)?|,?)$')
-blank_pattern    = re.compile(r'\s{2,}')
-merge_status = False
-merge_line   = ""
 class FuncElem:
     func_idx = 0
     QUALIFIERS = ['const', 'volatile']
@@ -25,9 +22,12 @@ class FuncElem:
         self.decla_parser(self.prototype, debug)
 
         if debug:
-            self.debug_info()
+            self.format_debug_info()
 
-    def debug_info(self):
+    def __str__(self):
+        return self.prototype
+
+    def format_debug_info(self):
             print("{:02d}  {:s}".format(self.idx, self.func_name), end='')
             for i in range(40-len(self.func_name)):
                 print("=", end='')
@@ -95,24 +95,21 @@ class FuncElem:
         else:
             if debug: print("{:0d}  ERROR: Declaration pattern didn't match.".format(self.idx))
 
-    def __str__(self):
-        return self.prototype
-
 def func_parser(defs, code, debug=False):
-    global merge_status
-    global merge_line
+    global _merge_status
+    global _merge_line
     code = code.strip().strip('\n')
-    if merge_status == False:
-        find = func_def_pattern.match(code)
-        if find is None:
+    if _merge_status == False:
+        found = _func_def_pattern.match(code)
+        if found is None:
             pass
         else:
-            line = find.group()
-            if param_dec_pattern.search(line) is not None:
+            line = found.group()
+            if _param_dec_pattern.search(line) is not None:
                 line = line.rstrip('{')
                 if line.endswith(r','):
-                    merge_status = True
-                    merge_line  += line
+                    _merge_status = True
+                    _merge_line  += line
                 else:
                     defs.append(FuncElem(line, debug))
             else:
@@ -120,18 +117,18 @@ def func_parser(defs, code, debug=False):
 
     else:
         if code.endswith(r','):
-            merge_line += code
+            _merge_line += code
         if code.endswith(r')'):
-            merge_status = False
-            merge_line += code
-            merge_line = ' '.join(re.split(r'\s+', merge_line))
-            defs.append(FuncElem(merge_line, debug))
-            merge_line = ""
+            _merge_status = False
+            _merge_line += code
+            _merge_line = ' '.join(re.split(r'\s+', _merge_line))
+            defs.append(FuncElem(_merge_line, debug))
+            _merge_line = ""
         elif code.endswith(r');'):
             # 函数原型声明，丢弃已解析部分
             # TODO: 添加deflist中函数名是否已存在的查找函数，对函数声明也加入解析，函数定义解析后不用再重复加入列表
-            merge_status = False
-            merge_line = ""
+            _merge_status = False
+            _merge_line = ""
         else:
             pass
 
