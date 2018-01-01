@@ -46,25 +46,50 @@ class CodeParser:
         if len(self.defs_list) is 0 and self._debug:
             print("INFO : None of function definitions were founded.")
 
-def parse_all_in_dir(path=os.getcwd(), debug=False):
+def parse_all_in_dir(path=os.getcwd(), module_list, debug=False):
+    '''Parse all .c files recursively in the given path
+
+    The validation of the path should be checked before passed in this method
+
+    @Param path         An absolute or relative path contains .c files to be parsed
+    
+    @Param module_list  An empty list initially passed by args parser, and recursively
+                        passed by the method itself during the recursion.
+                        The list is used to store all parser objects.
+                        None type or type other than list would be rejected by argument check
+                        The list wouldn't returned by the method but would be modified
+
+    @Param debug        Debug mode trigger
+
+    @REturn None
     '''
-    parse all .c files in giving working dir
-    '''
+    if module_list is None or module_list is not list:
+        print("ERROR: Uncontrolled arguments are passed to method.")
+        sys.eixt(1)
+
     for f in os.listdir(path):
-        filepath = os.path.join(path, f)
-        if os.path.exists(filepath) and os.path.isfile(filepath):
+        nxt_path = os.path.abspath(f)
+        # If it's a file object, exame if it's a .c file
+        if os.path.isfile(nxt_path):
             if _c_ext_pattern.match(f) is None:
                 if debug: print("ERROR: {:s} isn't a validate .c file.".format(f))
             else:
-                filename = os.path.splitext(f)[0]
+                filename = os.path.splitext(os.path.basename(nxt_path))[0]
+                # Igonore any .c files named as ver_xxx.c or xxx_stub.c
+                # They're version file and stubs for unittest
                 if filename[:4]=="ver_" or filename[-5:len(filename)]=="_stub":
                     pass
                 else:
-                    print("INFO : Current working dir: {:s}".format(filepath))
-                    #main_process(tblpath, filepath, debug=debug)
-                    print()
+                    parser = CodeParser(nxt_path, debug=debug)
+                    print("INFO : Current working dir: {:s}\r\n".format(parser.working_dir))
+                    module_list.append(parser)
+        # If it's a dir, recurse into it.
+        elif os.path.isdir(nxt_path):
+            parse_all_in_dir(nxt_path, module_list, debug=debug)
+        # Handle any other unexpected file types, return to previous recursion if any
         else:
-            pass
+            print("ERROR: {:s} is NOT a valid object to be parsed.".format(nxt_path))
+            return
     
 def parse_file(fn, debug=False):
     '''Handling the file validation check before parsing its content
@@ -108,6 +133,9 @@ def parse_command_process(args):
         path_list.append(args.filepath)
 
     if args.Dir:
+        # TODO: in order to reduce the complications, multiple dir arguments 
+        #       are not allowed. Modify and re-study the type of args passed by argparse
+        #       to see if the path_list is still necessary.
         for filepath in path_list:
             if os.path.exists(filepath) and os.path.isdir(filepath):
                 parse_all_in_dir(filepath, args.Debug)
